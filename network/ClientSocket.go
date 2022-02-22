@@ -2,11 +2,13 @@ package network
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"zjh/log"
+	"zjh/tool"
 )
 
-type ClientSocket struct{
+type ClientSocket struct {
 	Socket
 }
 
@@ -17,6 +19,11 @@ func (this *ClientSocket) Init(ip string, port int) bool {
 	this.m_IP = ip
 	this.m_Port = port
 	return true
+}
+
+//客户端主动断开连接
+func (this *ClientSocket) Disconnect() {
+	this.Close()
 }
 
 func (this *ClientSocket) Connect() bool {
@@ -33,10 +40,45 @@ func (this *ClientSocket) Connect() bool {
 	return true
 }
 
-func (this *ClientSocket) Run() bool {
-	loop := func() bool {
-		
+func handleError(err error) {
+	if err == nil {
+		return
 	}
+	log.Error("错误：%s\n", err.Error())
+}
+
+func (this *ClientSocket) Run() bool {
+	var buff = make([]byte, this.m_ReceiveBufferSize)
+	loop := func() bool {
+		defer func() {
+			if err := recover(); err != nil {
+				tool.TraceCode(err)
+			}
+		}()
+		n, err := this.m_Conn.Read(buff)
+		if err == io.EOF {
+			fmt.Printf("远程链接：%s已经关闭！\n", this.m_Conn.RemoteAddr().String())
+			this.Disconnect()
+			return false
+		}
+		if err != nil {
+			handleError(err)
+			this.Disconnect()
+			return false
+		}
+		if n > 0 {
+			this.ReceivePacket(this.m_ClientId, buff[:n])
+		}
+		return true
+	}
+	for {
+		if !loop() {
+			break
+		}
+	}
+
+	this.Close()
+	return true
 }
 
 func (this *ClientSocket) Start() bool {
@@ -47,4 +89,5 @@ func (this *ClientSocket) Start() bool {
 		this.m_Conn.(*net.TCPConn).SetNoDelay(true)
 		go this.Run()
 	}
+	return true
 }
