@@ -1,0 +1,7 @@
+syntax = "proto2";
+option go_package = "../proto";
+
+enum ErrorType {
+  Success = 0;
+  Fail = 1;
+}

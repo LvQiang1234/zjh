@@ -1,0 +1,22 @@
+syntax = "proto2";
+option go_package = "../proto";
+
+import "error.proto";
+
+message LoginReq {
+  required string Name = 1;
+  required string PassWord = 2;
+}
+
+message LoginAck {
+  required  ErrorType Error = 1;
+}
+
+message RegisterReq {
+  required string Name = 1;
+  required string PassWord = 2;
+}
+
+message RegisterAck {
+  required ErrorType Error  = 1;
+}

@@ -47,6 +47,14 @@ func handleError(err error) {
 	log.Error("错误：%s\n", err.Error())
 }
 
+func (this *ClientSocket) Send(data []byte) {
+	netMsg := NetMsg{
+		playerId: this.m_ClientId,
+		data:     data,
+	}
+	this.sendChan <- &netMsg
+}
+
 func (this *ClientSocket) Run() bool {
 	var buff = make([]byte, this.m_ReceiveBufferSize)
 	loop := func() bool {
@@ -88,6 +96,7 @@ func (this *ClientSocket) Start() bool {
 	if this.Connect() {
 		this.m_Conn.(*net.TCPConn).SetNoDelay(true)
 		go this.Run()
+		go this.DoSend()
 	}
 	return true
 }

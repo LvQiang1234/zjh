@@ -1,0 +1,8 @@
+syntax = "proto2";
+option go_package = "../proto";
+
+message MsgPacket {
+  required uint32 MsgId = 1;
+  required uint32 PlayerId = 2;
+  required bytes Data = 3;
+}

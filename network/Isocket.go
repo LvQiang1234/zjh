@@ -2,13 +2,21 @@ package network
 
 import (
 	"fmt"
+	"google.golang.org/protobuf/proto"
 	"net"
+	"zjh/msgcenter"
+	proto2 "zjh/proto"
 	"zjh/tool"
 )
 
 const (
-	TCP_HEAD_SIZE = 4
+	TCP_HEAD_SIZE = 4 //包头的长度
 )
+
+type NetMsg struct {
+	playerId uint64
+	data     []byte
+}
 
 type Socket struct {
 	m_Conn net.Conn
@@ -19,7 +27,15 @@ type Socket struct {
 	m_MaxReceiveBuffer     []byte
 	m_MaxReceiveBufferSize int //整个缓冲区的最大值
 
+	sendChan chan *NetMsg //发送消息的管道
+
 	m_ClientId uint64
+}
+
+func (this *Socket) Init(ip string, port int) bool {
+	this.m_IP = ip
+	this.m_Port = port
+	return true
 }
 
 func (this *Socket) SetTcpConn(conn net.Conn) {
@@ -32,8 +48,29 @@ func (this *Socket) Close() {
 	}
 }
 
-func (this *Socket) HandlePacket(Id uint64, dat []byte) {
+func (this *Socket) DoSend() {
+	for {
+		select {
+		case <-this.sendChan:
+			msg := <-this.sendChan
+			var buff []byte = make([]byte, 1)
+			buff = append(buff, tool.Uint64ToBytes(msg.playerId)...)
+			buff = append(buff, msg.data...)
+			this.m_Conn.Write(buff)
+		}
+	}
+}
 
+func (this *Socket) Send(dat []byte) {
+	netMsg := NetMsg{playerId: this.m_ClientId, data: dat}
+	this.sendChan <- &netMsg
+}
+
+func (this *Socket) HandlePacket(Id uint64, data []byte) {
+	msgPacket := proto2.MsgPacket{}
+	proto.Unmarshal(data, &msgPacket)
+	handler := msgcenter.ApiMap[*msgPacket.MsgId]
+	handler.APIFunction(*msgPacket.PlayerId, msgPacket.Data)
 }
 
 func (this *Socket) ReceivePacket(Id uint64, dat []byte) bool {
