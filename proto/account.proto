@@ -1,5 +1,5 @@
 syntax = "proto2";
-option go_package = "../proto";
+option go_package = "../pb";
 
 import "error.proto";
 
@@ -9,7 +9,8 @@ message LoginReq {
 }
 
 message LoginAck {
-  required  ErrorType Error = 1;
+  required  int32	    PlayerId = 1;
+  required  ErrorType Error = 2;
 }
 
 message RegisterReq {

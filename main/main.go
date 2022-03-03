@@ -1,17 +1,19 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"zjh/log"
+	"zjh/logic/account"
 	"zjh/network"
 )
 
-func main() {
-	args := os.Args
+func init() {
+	account.Init()
+}
 
+func main() {
 	server := network.ServerSocket{}
 	server.Init("127.0.0.1", 6000)
 	if !server.Start() {
@@ -22,5 +24,5 @@ func main() {
 	signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGTERM)
 	s := <-c
 
-	fmt.Printf("server【%s】 exit ------- signal:[%v]", args[1], s)
+	log.Debug("server exit because get signal: %v", s)
 }

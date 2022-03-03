@@ -1,5 +1,5 @@
 syntax = "proto2";
-option go_package = "../proto";
+option go_package = "../pb";
 
 enum ErrorType {
   Success = 0;

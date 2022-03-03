@@ -2,9 +2,14 @@ package network
 
 import (
 	"fmt"
+	"google.golang.org/protobuf/proto"
 	"io"
 	"net"
+	"strconv"
+	"strings"
 	"zjh/log"
+	"zjh/msgcenter"
+	"zjh/pb"
 	"zjh/tool"
 )
 
@@ -13,11 +18,10 @@ type ClientSocket struct {
 }
 
 func (this *ClientSocket) Init(ip string, port int) bool {
-	if this.m_IP == ip || this.m_Port == port {
-		return false
-	}
-	this.m_IP = ip
-	this.m_Port = port
+	arr := strings.Split(ip, ":")
+	this.m_IP = arr[0]
+	this.m_Port, _ = strconv.Atoi(arr[1])
+	this.Socket.Init(ip, port)
 	return true
 }
 
@@ -47,14 +51,6 @@ func handleError(err error) {
 	log.Error("错误：%s\n", err.Error())
 }
 
-func (this *ClientSocket) Send(data []byte) {
-	netMsg := NetMsg{
-		playerId: this.m_ClientId,
-		data:     data,
-	}
-	this.sendChan <- &netMsg
-}
-
 func (this *ClientSocket) Run() bool {
 	var buff = make([]byte, this.m_ReceiveBufferSize)
 	loop := func() bool {
@@ -75,7 +71,7 @@ func (this *ClientSocket) Run() bool {
 			return false
 		}
 		if n > 0 {
-			this.ReceivePacket(this.m_ClientId, buff[:n])
+			this.ReceivePacket(buff[:n])
 		}
 		return true
 	}
@@ -89,7 +85,83 @@ func (this *ClientSocket) Run() bool {
 	return true
 }
 
-func (this *ClientSocket) Start() bool {
+func (this *ClientSocket) DoSend() {
+	for {
+		select {
+		case response := <-this.sendChan:
+			var buff []byte = make([]byte, 0)
+			msg, _ := proto.Marshal(response)
+			buff = append(buff, tool.UintToBytes(uint(len(msg)))...)
+			buff = append(buff, msg...)
+			this.m_Conn.Write(buff)
+		}
+	}
+}
+
+func (this *ClientSocket) Send(dat []byte, msgId pb.MsgId) {
+	response := pb.MsgPacket{MsgId: &msgId, Data: dat}
+	this.sendChan <- &response
+}
+
+func (this *ClientSocket) HandlePacket(data []byte) {
+	msgPacket := pb.MsgPacket{}
+	proto.Unmarshal(data, &msgPacket)
+	handler := msgcenter.GetHandler(*msgPacket.MsgId)
+	dat, msgType := handler(*msgPacket.PlayerId, msgPacket.Data)
+	this.Send(dat, msgType)
+}
+
+func (this *ClientSocket) ReceivePacket(dat []byte) bool {
+	//找包结束
+	seekToTcpEnd := func(buff []byte) (bool, int) {
+		nLen := len(buff)
+		if nLen < TCP_HEAD_SIZE {
+			return false, 0
+		}
+
+		nSize := tool.BytesToInt(buff[0:4])
+		if nSize+TCP_HEAD_SIZE <= nLen {
+			return true, nSize + TCP_HEAD_SIZE //返回一个整包的长度
+		}
+		return false, 0
+	}
+
+	buff := append(this.m_MaxReceiveBuffer, dat...)
+	this.m_MaxReceiveBuffer = []byte{}
+	nCurSize := 0
+	//fmt.Println(this.m_MaxReceiveBuffer)
+ParsePacekt:
+	nPacketSize := 0
+	nBufferSize := len(buff[nCurSize:])
+	bFindFlag := false
+	bFindFlag, nPacketSize = seekToTcpEnd(buff[nCurSize:])
+	//fmt.Println(bFindFlag, nPacketSize, nBufferSize)
+	if bFindFlag {
+		if nBufferSize == nPacketSize { //完整包
+			this.HandlePacket(buff[nCurSize+TCP_HEAD_SIZE : nCurSize+nPacketSize])
+			nCurSize += nPacketSize
+		} else if nBufferSize > nPacketSize { //大于一个完整包
+			this.HandlePacket(buff[nCurSize+TCP_HEAD_SIZE : nCurSize+nPacketSize])
+			nCurSize += nPacketSize
+			goto ParsePacekt
+		}
+	} else if nBufferSize < this.m_MaxReceiveBufferSize {
+		this.m_MaxReceiveBuffer = buff[nCurSize:]
+	} else {
+		fmt.Println("超出最大包限制，丢弃该包")
+		return false
+	}
+	return true
+}
+
+func (this *ClientSocket) ServerClientStart() bool {
+	this.m_Conn.(*net.TCPConn).SetNoDelay(true)
+	go this.Run()
+	go this.DoSend()
+	return true
+}
+
+func (this *ClientSocket) ClientServerStart() bool {
 	if this.m_IP == "" {
 		this.m_IP = "127.0.0.1"
 	}

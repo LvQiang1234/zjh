@@ -11,10 +11,10 @@ func BytesToInt(data []byte) int {
 }
 
 //整形转换成字节
-func Uint64ToBytes(val uint64) []byte {
-	tmp := uint64(val)
-	buff := make([]byte, 8)
-	binary.LittleEndian.PutUint64(buff, tmp)
+func UintToBytes(val uint) []byte {
+	tmp := uint32(val)
+	buff := make([]byte, 4)
+	binary.LittleEndian.PutUint32(buff, tmp)
 	return buff
 }
 

@@ -12,7 +12,6 @@ type ServerSocket struct {
 	Socket
 	m_nClientCount int
 	m_nIdSeed      uint64
-	m_ClientList   map[uint64]*ClientSocket
 	m_ClientLocker *sync.RWMutex
 	m_Listen       *net.TCPListener
 	m_Lock         sync.Mutex
@@ -20,8 +19,9 @@ type ServerSocket struct {
 
 func (this *ServerSocket) Init(ip string, port int) bool {
 	this.Socket.Init(ip, port)
-	this.m_ClientList = make(map[uint64]*ClientSocket)
 	this.m_ClientLocker = &sync.RWMutex{}
+	this.m_ReceiveBufferSize = ReceiveBufferSize
+	this.m_MaxReceiveBufferSize = MaxReceiveBufferSize
 	return true
 }
 
@@ -29,19 +29,15 @@ func (this *ServerSocket) AssignClientId() uint64 {
 	return atomic.AddUint64(&this.m_nIdSeed, 1)
 }
 
-func (this *ServerSocket) AddClinet(tcpConn *net.TCPConn, addr string) *ClientSocket {
+func (this *ServerSocket) AddClient(tcpConn *net.TCPConn, addr string) *ClientSocket {
 	client := &ClientSocket{}
 	if client != nil {
-		client.Init("", 0)
+		client.Init(addr, 0)
 		client.m_ReceiveBufferSize = this.m_ReceiveBufferSize
 		client.m_MaxReceiveBufferSize = this.m_MaxReceiveBufferSize
-		client.m_ClientId = this.AssignClientId()
 		client.m_IP = addr
 		client.SetTcpConn(tcpConn)
-		this.m_ClientLocker.Lock()
-		this.m_ClientList[client.m_ClientId] = client
-		this.m_ClientLocker.Unlock()
-		client.Start()
+		client.ServerClientStart()
 		this.m_nClientCount++
 		return client
 	} else {
@@ -55,7 +51,7 @@ func (this *ServerSocket) handleConn(tcpConn *net.TCPConn, addr string) bool {
 		return false
 	}
 
-	pClient := this.AddClinet(tcpConn, addr)
+	pClient := this.AddClient(tcpConn, addr)
 	if pClient == nil {
 		return false
 	}
@@ -70,7 +66,6 @@ func (this *ServerSocket) Run() bool {
 		if err != nil {
 			return false
 		}
-
 		fmt.Printf("客户端：%s已连接！\n", tcpConn.RemoteAddr().String())
 		//延迟，关闭链接
 		//defer tcpConn.Close()

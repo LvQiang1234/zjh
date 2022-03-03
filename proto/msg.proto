@@ -1,8 +1,15 @@
 syntax = "proto2";
-option go_package = "../proto";
+option go_package = "../pb";
+
+enum MsgId {
+  LoginRequest = 0;
+  LoginResponse = 1;
+  RegisterRequest = 2;
+  RegisterAckResponse = 3;
+}
 
 message MsgPacket {
-  required uint32 MsgId = 1;
-  required uint32 PlayerId = 2;
+  required MsgId MsgId = 1;
+  required int32   PlayerId = 2;
   required bytes Data = 3;
 }

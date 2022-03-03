@@ -1,17 +1,21 @@
 package msgcenter
 
-import "zjh/Test/apitest"
-
-type HandleFunc func(uint32, []byte) interface{}
-
-type APIInfo struct {
-	APIFunction HandleFunc
-}
-
-const (
-	TestFunc = 0
+import (
+	"zjh/pb"
 )
 
-var ApiMap = map[uint32]*APIInfo{
-	TestFunc: &APIInfo{APIFunction: apitest.TestFunc},
+type HandleFunc func(int32, []byte) ([]byte, pb.MsgId)
+
+var ApiMap map[pb.MsgId]HandleFunc
+
+func init() {
+	ApiMap = make(map[pb.MsgId]HandleFunc, 0)
+}
+
+func Register(msgId pb.MsgId, handler HandleFunc) {
+	ApiMap[msgId] = handler
+}
+
+func GetHandler(msgId pb.MsgId) HandleFunc {
+	return ApiMap[msgId]
 }
