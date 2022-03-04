@@ -6,10 +6,14 @@ enum MsgId {
   LoginResponse = 1;
   RegisterRequest = 2;
   RegisterAckResponse = 3;
+  GetPlayerInfoRequest = 4;
+  GetPlayerInfoResponse = 5;
+  UpdateCoinRequest = 6;
+  UpdateCoinResponse = 7;
 }
 
 message MsgPacket {
   required MsgId MsgId = 1;
   required int32   PlayerId = 2;
-  required bytes Data = 3;
+  optional bytes Data = 3;
 }

@@ -9,8 +9,8 @@ message LoginReq {
 }
 
 message LoginAck {
-  required  int32	    PlayerId = 1;
-  required  ErrorType Error = 2;
+  optional  int32	    PlayerId = 1;
+  required  ErrorType Error = 5;
 }
 
 message RegisterReq {
@@ -20,4 +20,24 @@ message RegisterReq {
 
 message RegisterAck {
   required ErrorType Error  = 1;
+}
+
+message PlayerInfoReq {
+
+}
+
+message PlayerInfoAck {
+  required ErrorType Error  = 1;
+  optional  string    PlayerName = 2;
+  optional  int32     coins = 3;
+  optional  int32     ImageId = 4;
+}
+
+message UpdateCoinReq {
+  required int32 Num = 1;
+}
+
+message UpdateCoinAck {
+  required ErrorType Error  = 1;
+  required int32 CoinNum = 2;
 }

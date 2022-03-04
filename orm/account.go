@@ -10,6 +10,8 @@ type Account struct {
 	Id         int32
 	Username   string
 	Password   string
+	Imageid    int32
+	Coin       int32
 	Createtime time.Time `xorm:"created"`
 	Lastlogin  time.Time `xorm:"updated"`
 }
